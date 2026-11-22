@@ -12,7 +12,13 @@ The open pull requests below are kept as live examples. Open one to see the gate
 
 | Pull request | The change | Caught by | Verdict |
 |---|---|---|---|
-| _showcase PRs are linked here once they are open_ | | | |
+| [#1 Docs: how to run the pipeline locally](https://github.com/K11-Software-Solutions/k11techlab-release-gate-demo/pull/1) | README only | required unit and API tests pass | 🟢 **Ship** |
+| [#2 Inventory: cap automatic reservations at 2 units](https://github.com/K11-Software-Solutions/k11techlab-release-gate-demo/pull/2) | the consumer reserves 2 of an order for 3 | **Integration QA** on Kafka: the closest message has `qty` 2, not 3. Unit tests pass | 🔴 **Block** |
+| [#3 Orders API: stop returning total](https://github.com/K11-Software-Solutions/k11techlab-release-gate-demo/pull/3) | removes a field (unit tests updated) | **API Contract QA**: breaks the critical mobile app; API and integration flows that use `total` fail | 🔴 **Block** |
+| [#4 Orders: share one order lookup](https://github.com/K11-Software-Solutions/k11techlab-release-gate-demo/pull/4) | drops the owner check | **API Security QA**: bob can read alice's order (OWASP API1) | 🔴 **Block** |
+| [#5 Orders API: drop createdAt](https://github.com/K11-Software-Solutions/k11techlab-release-gate-demo/pull/5) | removes a field only analytics reads | **API Contract QA**: breaks a medium-criticality consumer, so `@qa-lead` must sign off | 🟠 **Needs a person** |
+
+In #2, #3 and #5 the unit tests pass: the problems only show up between the parts, which is what the K11 tools test.
 
 ## The system
 
