@@ -51,7 +51,7 @@ def test_order_total_and_reservation(shop):
 
 def test_order_response_has_only_documented_fields(shop):
     _, order = call(shop, "POST", "/orders", {"sku": "HAT-2", "qty": 1}, ALICE)
-    assert set(order) == {"id", "customerId", "sku", "qty", "total", "channel", "status", "createdAt"}
+    assert set(order) == {"id", "customerId", "sku", "qty", "total", "channel", "status"}
 
 
 def test_client_cannot_set_server_fields(shop):
