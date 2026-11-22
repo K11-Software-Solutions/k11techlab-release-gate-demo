@@ -1,0 +1,120 @@
+openapi: 3.0.3
+info:
+  title: K11 Shop orders API
+  version: 1.0.0
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      operationId: health
+      security: []
+      responses:
+        "200":
+          description: The service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string }
+  /orders:
+    get:
+      operationId: listOrders
+      summary: The caller's orders, newest first
+      responses:
+        "200":
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Order" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      operationId: createOrder
+      summary: Place an order (stock is reserved asynchronously)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NewOrder" }
+      responses:
+        "201":
+          description: Created, pending until stock is reserved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /orders/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getOrder
+      responses:
+        "200":
+          description: The order
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /orders/{id}/cancel:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      operationId: cancelOrder
+      responses:
+        "200":
+          description: Cancelled; reserved stock is released
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Order" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: The order can't be cancelled any more
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer }
+  schemas:
+    NewOrder:
+      type: object
+      required: [sku, qty]
+      properties:
+        sku: { type: string, example: BAG-1 }
+        qty: { type: integer, minimum: 1, maximum: 100, example: 2 }
+        channel: { type: string, enum: [web, mobile, pos], default: web }
+    Order:
+      type: object
+      required: [id, customerId, sku, qty, total, channel, status, createdAt]
+      properties:
+        id: { type: string }
+        customerId: { type: string }
+        sku: { type: string }
+        qty: { type: integer }
+        total: { type: number }
+        channel: { type: string, enum: [web, mobile, pos] }
+        status: { type: string, enum: [pending, reserved, failed, cancelled] }
+        createdAt: { type: string, format: date-time }
+      additionalProperties: false
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+  responses:
+    BadRequest:
+      description: Invalid input
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Unauthorized:
+      description: Missing or invalid bearer token
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    NotFound:
+      description: No such order for this customer
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }

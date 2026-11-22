@@ -1,0 +1,12 @@
+name: An unreadable command goes to the dead-letter queue
+tags: [dlq, kafka]
+vars: { poisonKey: "poison-${uuid}" }
+steps:
+  - listen: { broker: main, topic: orders.dlq, as: dlq }
+  - name: publish a command that isn't JSON
+    publish: { broker: main, topic: orders.commands, key: "${poisonKey}", value: "cancel order 42 please" }
+  - name: it is dead-lettered with the reason
+    expect_message:
+      from: dlq
+      match: { key: "${poisonKey}", "header:error": { exists: true } }
+      within: 10s

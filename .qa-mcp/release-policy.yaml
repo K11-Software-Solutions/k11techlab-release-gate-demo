@@ -1,0 +1,7 @@
+# k11 Release Gate policy for K11 Shop
+name: K11 Shop release policy
+required: [junit, api_tests]             # on every pull request
+max_age_hours: 6                         # evidence must come from this pipeline run
+approvers: ["@qa-lead"]
+# The rest is change-aware (built-in triggers): openapi.yaml -> contract, src/shop/auth -> security,
+# src/shop/consumers, jobs/, asyncapi.yaml -> integration, src/shop/api -> api_tests.

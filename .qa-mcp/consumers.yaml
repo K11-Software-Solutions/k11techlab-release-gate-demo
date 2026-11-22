@@ -1,0 +1,17 @@
+# Who calls this API and which fields they rely on (k11 API Contract QA)
+consumers:
+  - name: mobile-app
+    owner: "@team-mobile"
+    criticality: critical
+    uses:
+      - endpoint: GET /orders/{id}
+        reads: [id, status, total]
+      - endpoint: POST /orders
+        sends: [sku, qty, channel]
+        reads: [id, total, status]
+  - name: analytics
+    owner: "@team-data"
+    criticality: medium
+    uses:
+      - endpoint: GET /orders
+        reads: [id, sku, qty, channel, createdAt]

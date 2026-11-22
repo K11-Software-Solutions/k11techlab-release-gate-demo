@@ -1,0 +1,20 @@
+name: A customer orders, sees it reserved, and cancels it
+tags: [orders]
+steps:
+  - name: place an order for two bags
+    call: POST /orders
+    body: { sku: BAG-1, qty: 2, channel: mobile }
+    expect:
+      status: 201
+      json: { "$.total": 85.0, "$.status": pending, "$.customerId": u-alice }
+    save: { orderId: "$.id" }
+  - name: the order is stored with the right total
+    db: SELECT total, qty FROM orders WHERE id = :orderId
+    params: { orderId: "${orderId}" }
+    expect: { rows: 1, row: { total: 85.0, qty: 2 } }
+  - name: it appears in the customer's order list
+    call: GET /orders
+    expect: { status: 200, json: { "$[*].id": { contains: "${orderId}" } } }
+  - name: cancel it
+    call: POST /orders/${orderId}/cancel
+    expect: { status: 200, json: { "$.status": cancelled } }

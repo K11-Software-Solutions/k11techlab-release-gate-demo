@@ -1,0 +1,8 @@
+# k11 API Security QA: two TEST users; alice owns the test order, bob must not reach it
+identities:
+  alice: { auth: alice }
+  bob:   { auth: bob }
+resources:
+  "/orders/{id}":
+    create: { call: POST /orders, body: { sku: BAG-1, qty: 1 }, save: "$.id", delete: false }
+checks: [auth, bola, mass_assignment, data_exposure, errors]

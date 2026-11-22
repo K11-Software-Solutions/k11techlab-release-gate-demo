@@ -1,0 +1,21 @@
+name: The nightly sku_totals job is safe to run twice
+tags: [jobs]
+fixtures: [sku]
+steps:
+  - listen: { broker: main, topic: orders.events, as: events }
+  - call: POST /orders
+    body: { sku: "${fixture.sku.sku}", qty: 2 }
+    expect: { status: 201 }
+    save: { orderId: "$.id" }
+  - expect_message: { from: events, match: { "$.type": StockReserved, "$.orderId": "${orderId}" }, within: 10s }
+  - name: run the job
+    run_job: { job: sku_totals }
+  - name: run it again (a retry)
+    run_job: { job: sku_totals }
+  - name: the total is still 2
+    db: SELECT qty FROM sku_totals WHERE sku = :sku
+    params: { sku: "${fixture.sku.sku}" }
+    expect: { row: { qty: 2 } }
+cleanup:
+  - db: DELETE FROM orders WHERE id = :orderId
+    params: { orderId: "${orderId}" }

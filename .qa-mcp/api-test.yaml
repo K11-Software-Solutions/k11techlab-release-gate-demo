@@ -1,0 +1,20 @@
+# k11 API Functional QA (also used by API Security QA and Integration QA): environments, users, database.
+spec: openapi.yaml
+default_environment: ci
+environments:
+  ci:
+    base_url: "${ENV:SHOP_URL}"          # the shop started by the workflow
+    auth: alice
+  prod:
+    base_url: "${ENV:SHOP_URL}"          # named like production: every data-changing test is refused
+    auth: alice
+auth:
+  alice: { type: bearer, token: "${ENV:ALICE_TOKEN}" }   # TEST users only
+  bob:   { type: bearer, token: "${ENV:BOB_TOKEN}" }
+databases:
+  shop: { url: "sqlite:///shop.db", allow_writes: true }  # fixtures and cleanup only
+fixtures:
+  sku:                                   # a fresh product per flow, so flows never share stock
+    db: shop
+    insert: { table: inventory, values: { sku: "SKU-${random_int}", price: 10.0, stock: 10, reserved: 0 } }
+    delete: { table: inventory, where: { sku: "${sku}" } }

@@ -1,0 +1,31 @@
+name: An order reserves stock through the inventory consumer
+tags: [orders, kafka]
+fixtures: [sku]
+steps:
+  - listen: { broker: main, topic: orders.events, as: events }
+  - name: place an order for 3
+    call: POST /orders
+    body: { sku: "${fixture.sku.sku}", qty: 3 }
+    expect: { status: 201, json: { "$.total": 30.0 } }
+    save: { orderId: "$.id" }
+  - name: OrderCreated is published and matches the AsyncAPI contract
+    expect_message:
+      from: events
+      match: { "$.type": OrderCreated, "$.orderId": "${orderId}", "$.qty": 3 }
+      schema: OrderCreated
+      within: 10s
+  - name: the inventory consumer reserves all 3
+    expect_message:
+      from: events
+      match: { "$.type": StockReserved, "$.orderId": "${orderId}", "$.qty": 3 }
+      schema: StockReserved
+      within: 10s
+  - name: the reservation is in the database
+    wait_until:
+      db: SELECT reserved FROM inventory WHERE sku = :sku
+      params: { sku: "${fixture.sku.sku}" }
+      expect: { row: { reserved: 3 } }
+      within: 10s
+cleanup:
+  - db: DELETE FROM orders WHERE id = :orderId
+    params: { orderId: "${orderId}" }

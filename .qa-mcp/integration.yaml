@@ -1,0 +1,9 @@
+# k11 Integration QA: Kafka in CI, plus the nightly batch job
+brokers:
+  main: { type: kafka, bootstrap: "${ENV:KAFKA_BOOTSTRAP}" }
+jobs:
+  sku_totals:
+    command: [python, jobs/sku_totals.py]
+    env: { SHOP_DB: shop.db }
+    timeout: 60s
+asyncapi: asyncapi.yaml

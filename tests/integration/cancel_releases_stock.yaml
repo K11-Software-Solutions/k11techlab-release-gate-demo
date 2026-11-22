@@ -1,0 +1,26 @@
+name: Cancelling a reserved order releases its stock
+tags: [orders, kafka]
+fixtures: [sku]
+steps:
+  - listen: { broker: main, topic: orders.events, as: events }
+  - call: POST /orders
+    body: { sku: "${fixture.sku.sku}", qty: 2 }
+    expect: { status: 201 }
+    save: { orderId: "$.id" }
+  - expect_message: { from: events, match: { "$.type": StockReserved, "$.orderId": "${orderId}" }, within: 10s }
+  - name: cancel it from the back office
+    publish: { broker: main, topic: orders.commands, key: "${orderId}", value: { action: cancel, orderId: "${orderId}" } }
+  - expect_message:
+      from: events
+      match: { "$.type": OrderCancelled, "$.orderId": "${orderId}" }
+      schema: OrderCancelled
+      within: 10s
+  - name: the stock is released
+    wait_until:
+      db: SELECT reserved FROM inventory WHERE sku = :sku
+      params: { sku: "${fixture.sku.sku}" }
+      expect: { row: { reserved: 0 } }
+      within: 10s
+cleanup:
+  - db: DELETE FROM orders WHERE id = :orderId
+    params: { orderId: "${orderId}" }

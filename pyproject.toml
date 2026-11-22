@@ -1,0 +1,24 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "k11-shop-demo"
+version = "1.0.0"
+description = "K11 Shop: a small event-driven orders service used to demo the k11 Release Gate Action."
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+kafka = ["kafka-python>=2.0.2"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+k11-shop = "shop.app:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/shop"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]

@@ -1,0 +1,15 @@
+name: Invalid orders are rejected with a 400, never a 500
+tags: [orders, negative]
+steps:
+  - call: POST /orders
+    body: { sku: BAG-1, qty: "two" }
+    expect: { status: 400 }
+  - call: POST /orders
+    body: { sku: BAG-1, qty: 0 }
+    expect: { status: 400 }
+  - call: POST /orders
+    body: { sku: NO-SUCH-SKU, qty: 1 }
+    expect: { status: 400 }
+  - name: another customer's order is not found
+    call: GET /orders/does-not-exist
+    expect: { status: 404 }

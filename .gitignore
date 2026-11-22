@@ -1,0 +1,5 @@
+__pycache__/
+shop.db
+test-results/
+.qa-mcp/*-report/
+.qa-mcp/release-gate/
