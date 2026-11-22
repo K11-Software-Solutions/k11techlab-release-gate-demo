@@ -1,0 +1,127 @@
+name: Release gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write          # the gate's PR comment
+
+env:
+  SHOP_URL: http://127.0.0.1:8095
+  ALICE_TOKEN: alice-test-token # demo TEST users; real projects use secrets
+  BOB_TOKEN: bob-test-token
+  PYTHONIOENCODING: utf-8
+
+jobs:
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e ".[dev]"
+      - run: pytest --junitxml=test-results/junit.xml
+        continue-on-error: true            # the gate decides, with the reasons
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: junit, path: test-results/ }
+
+  api:
+    name: API functional + security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e . k11-api-functional-qa-mcp k11-api-security-qa-mcp
+      - name: Start the shop
+        run: |
+          python -m shop.app --port 8095 --db shop.db > shop.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf $SHOP_URL/health && break; sleep 1; done
+      - name: API functional flows (k11 API Functional QA)
+        run: k11-api-functional-qa-mcp run --env ci --fail-on never
+      - name: OWASP API Top 10 (k11 API Security QA)
+        run: k11-api-security-qa-mcp run --env ci --fail-on never --no-scanners
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: qa-api
+          include-hidden-files: true
+          path: .qa-mcp/                   # the whole folder keeps each report's subfolder
+
+  contract:
+    name: API contract vs base branch
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install "k11-api-contract-qa-mcp>=0.1.1"
+      - name: Breaking changes and the consumers they affect (k11 API Contract QA)
+        run: k11-api-contract-qa-mcp contract-ci --spec openapi.yaml --base origin/${{ github.base_ref }} --fail-on never
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: qa-contract, include-hidden-files: true, path: .qa-mcp/ }
+
+  integration:
+    name: Integration on Kafka
+    runs-on: ubuntu-latest
+    services:
+      kafka:
+        image: apache/kafka:3.9.1
+        ports: ["9092:9092"]
+        env:
+          KAFKA_NODE_ID: 1
+          KAFKA_PROCESS_ROLES: broker,controller
+          KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+          KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+          KAFKA_NUM_PARTITIONS: 3
+    env:
+      KAFKA_BOOTSTRAP: localhost:9092
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install -e ".[kafka]" "k11-integration-qa-mcp[kafka]"
+      - name: Create the topics
+        run: |
+          K="docker exec ${{ job.services.kafka.id }} /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092"
+          for i in $(seq 1 30); do $K --list >/dev/null 2>&1 && break; sleep 2; done
+          for t in orders.events orders.commands orders.dlq; do $K --create --if-not-exists --topic $t --partitions 3; done
+      - name: Start the shop on Kafka
+        run: |
+          python -m shop.app --port 8095 --db shop.db --kafka $KAFKA_BOOTSTRAP > shop.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf $SHOP_URL/health && break; sleep 1; done
+      - name: Events, consumers, dead-letter queue, batch job (k11 Integration QA)
+        run: k11-integration-qa-mcp run --env ci --fail-on never
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: qa-integration, include-hidden-files: true, path: .qa-mcp/ }
+
+  gate:
+    name: Release gate
+    needs: [unit, api, contract, integration]
+    if: always()                           # decide even when a test job failed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: junit, path: test-results }
+      - uses: actions/download-artifact@v4
+        with: { pattern: "qa-*", merge-multiple: true, path: .qa-mcp }
+      - uses: K11-Software-Solutions/k11techlab-release-gate-action@v1
+        with:
+          fail-on: block
