@@ -21,7 +21,7 @@ MAX_BODY = 64 * 1024
 def public(o: dict) -> dict:
     """The documented order representation; nothing else leaves the service."""
     return {"id": o["id"], "customerId": o["customer_id"], "sku": o["sku"], "qty": o["qty"],
-            "total": o["total"], "channel": o["channel"], "status": o["status"], "createdAt": o["created_at"]}
+            "channel": o["channel"], "status": o["status"], "createdAt": o["created_at"]}
 
 
 class Orders:
