@@ -92,13 +92,12 @@ components:
         channel: { type: string, enum: [web, mobile, pos], default: web }
     Order:
       type: object
-      required: [id, customerId, sku, qty, total, channel, status, createdAt]
+      required: [id, customerId, sku, qty, channel, status, createdAt]
       properties:
         id: { type: string }
         customerId: { type: string }
         sku: { type: string }
         qty: { type: integer }
-        total: { type: number }
         channel: { type: string, enum: [web, mobile, pos] }
         status: { type: string, enum: [pending, reserved, failed, cancelled] }
         createdAt: { type: string, format: date-time }

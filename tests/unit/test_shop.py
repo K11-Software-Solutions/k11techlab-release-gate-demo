@@ -44,20 +44,20 @@ def eventually(fn, timeout=5):
 
 def test_order_total_and_reservation(shop):
     status, order = call(shop, "POST", "/orders", {"sku": "BAG-1", "qty": 2, "channel": "mobile"}, ALICE)
-    assert status == 201 and order["total"] == 85.0 and order["status"] == "pending" and order["customerId"] == "u-alice"
+    assert status == 201 and order["status"] == "pending" and order["customerId"] == "u-alice"
     assert eventually(lambda: call(shop, "GET", f"/orders/{order['id']}", headers=ALICE)[1]["status"] == "reserved")
     assert shop.store.query("SELECT reserved FROM inventory WHERE sku = 'BAG-1'")[0]["reserved"] == 2
 
 
 def test_order_response_has_only_documented_fields(shop):
     _, order = call(shop, "POST", "/orders", {"sku": "HAT-2", "qty": 1}, ALICE)
-    assert set(order) == {"id", "customerId", "sku", "qty", "total", "channel", "status", "createdAt"}
+    assert set(order) == {"id", "customerId", "sku", "qty", "channel", "status", "createdAt"}
 
 
 def test_client_cannot_set_server_fields(shop):
     _, order = call(shop, "POST", "/orders", {"sku": "HAT-2", "qty": 1, "total": 0.01, "status": "reserved",
                                               "customerId": "u-bob"}, ALICE)
-    assert order["total"] == 15.0 and order["status"] == "pending" and order["customerId"] == "u-alice"
+    assert order["status"] == "pending" and order["customerId"] == "u-alice"
 
 
 @pytest.mark.parametrize("body", [{"sku": "BAG-1"}, {"sku": "BAG-1", "qty": "2"}, {"sku": "BAG-1", "qty": 0},
