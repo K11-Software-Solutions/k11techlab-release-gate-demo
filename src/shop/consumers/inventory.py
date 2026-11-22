@@ -24,7 +24,7 @@ class Inventory:
             self.release(event)
 
     def reserve(self, e: dict) -> None:
-        qty = int(e["qty"])
+        qty = min(int(e["qty"]), 2)  # bulk orders: manual review
 
         def tx(c):
             status = c.execute("SELECT status FROM orders WHERE id = ?", (e["orderId"],)).fetchone()
