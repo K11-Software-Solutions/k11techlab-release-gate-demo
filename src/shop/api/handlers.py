@@ -48,7 +48,7 @@ class Orders:
         return 201, public(order)
 
     def get(self, customer: str, order_id: str) -> tuple[int, dict]:
-        rows = self.store.query("SELECT * FROM orders WHERE id = ? AND customer_id = ?", (order_id, customer))
+        rows = self.store.query("SELECT * FROM orders WHERE id = ?", (order_id,))
         return (200, public(rows[0])) if rows else (404, {"error": "order not found"})
 
     def list(self, customer: str) -> tuple[int, list]:
