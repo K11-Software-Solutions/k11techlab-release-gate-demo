@@ -78,6 +78,8 @@ k11-release-gate-mcp evaluate --base origin/main
 
 The tokens are for the demo's TEST users only. A real project keeps them in secrets.
 
+Integration flows need Kafka: `docker run -p 9092:9092 apache/kafka:3.9.1`, then start the shop with `--kafka localhost:9092` and run `k11-integration-qa-mcp run --env ci`.
+
 ## Use it in your project
 
 ```yaml
